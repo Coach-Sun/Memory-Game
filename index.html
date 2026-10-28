@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>記憶翻牌益智遊戲</title>
+  <style>
+    :root {
+      --bg-gradient: linear-gradient(145deg, #FFF9F2 0%, #F5EBE1 100%);
+      --card-back-bg: linear-gradient(135deg, #F4A261 0%, #E76F51 100%);
+      --card-front-bg: #FFFFFF;
+      --card-shadow: 0 8px 18px rgba(231, 111, 81, 0.15);
+      --card-matched-glow: 0 0 0 3px #81B29A, 0 8px 20px rgba(129, 178, 154, 0.35);
+      --primary-color: #E76F51;
+      --primary-hover: #D85A3C;
+      --secondary-color: #81B29A;
+      --text-dark: #3D405B;
+      --text-muted: #7E8299;
+      --board-bg: rgba(255, 255, 255, 0.65);
+      --radius-sm: 12px;
+      --radius-md: 18px;
+      --radius-lg: 24px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang TC", "Microsoft JhengHei", sans-serif;
+      background: var(--bg-gradient);
+      min-height: 100vh;
+      min-height: 100dvh;
+      color: var(--text-dark);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 16px 12px;
+      overflow-x: hidden;
+    }
+
+    /* 主容器 */
+    .game-container {
+      width: 100%;
+      max-width: 440px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+
+    /* 遊戲標題 */
+    header {
+      text-align: center;
+      width: 100%;
+    }
+
+    h1 {
+      font-size: 1.75rem;
+      font-weight: 800;
+      color: var(--text-dark);
+      letter-spacing: 1px;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .subtitle {
+      font-size: 0.95rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    /* 上方操作與計分面板 */
+    .dashboard {
+      width: 100%;
+      background: var(--board-bg);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      padding: 12px 18px;
+      border-radius: var(--radius-lg);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.8);
+    }
+
+    .counter-badge {
+      display: flex;
+      align-items: baseline;
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--text-dark);
+      background: #FFFFFF;
+      padding: 8px 16px;
+      border-radius: var(--radius-md);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+      border: 1px solid #F0E6DC;
+    }
+
+    .counter-badge .number {
+      font-size: 1.45rem;
+      font-weight: 900;
+      color: var(--primary-color);
+      margin: 0 4px;
+      min-width: 28px;
+      text-align: center;
+      display: inline-block;
+    }
+
+    .action-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* 音效切換按鈕 */
+    .icon-btn {
+      background: #FFFFFF;
+      border: 1px solid #F0E6DC;
+      color: var(--text-dark);
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      font-size: 1.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+      transition: all 0.2s ease;
+      touch-action: manipulation;
+    }
+
+    .icon-btn:active {
+      transform: scale(0.92);
+      background: #FDF4EB;
+    }
+
+    /* 醒目的重新開始按鈕 */
+    .btn-restart {
+      background: var(--primary-color);
+      color: #FFFFFF;
+      border: none;
+      font-size: 1.05rem;
+      font-weight: 700;
+      padding: 10px 20px;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 4px 12px rgba(231, 111, 81, 0.35);
+      transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+      touch-action: manipulation;
+    }
+
+    .btn-restart:hover {
+      background: var(--primary-hover);
+      box-shadow: 0 6px 16px rgba(231, 111, 81, 0.45);
+    }
+
+    .btn-restart:active {
+      transform: scale(0.95);
+      box-shadow: 0 2px 6px rgba(231, 111, 81, 0.3);
+    }
+
+    /* 盤面配置：4 行 3 列 (共 12 張牌) */
+    .game-board {
+      width: 100%;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(4, 1fr);
+      gap: 12px;
+      padding: 14px;
+      background: var(--board-bg);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-radius: var(--radius-lg);
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.85);
+    }
+
+    /* 卡片整體 (3D 翻轉視角容器) */
+    .card {
+      position: relative;
+      aspect-ratio: 1 / 1.12;
+      perspective: 1000px;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+
+    .card-inner {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      transform-style: preserve-3d;
+      transition: transform 0.45s cubic-bezier(0.34, 1.4, 0.64, 1);
+      border-radius: var(--radius-md);
+      box-shadow: var(--card-shadow);
+    }
+
+    /* 翻轉與配對成功狀態 */
+    .card.flipped .card-inner,
+    .card.matched .card-inner {
+      transform: rotateY(180deg);
+    }
+
+    .card.matched .card-inner {
+      box-shadow: var(--card-matched-glow);
+      animation: pulse-match 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    @keyframes pulse-match {
+      0% { transform: rotateY(180deg) scale(0.96); }
+      50% { transform: rotateY(180deg) scale(1.08); }
+      100% { transform: rotateY(180deg) scale(1); }
+    }
+
+    /* 卡片正面與背面 */
+    .card-face {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+      border-radius: var(--radius-md);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid rgba(255, 255, 255, 0.9);
+    }
+
+    /* 卡片背面 (未翻開時) */
+    .card-back {
+      background: var(--card-back-bg);
+      color: #FFFFFF;
+      transform: rotateY(0deg);
+    }
+
+    .card-back-pattern {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.6rem;
+      border: 2px dashed rgba(255, 255, 255, 0.45);
+      transition: transform 0.25s ease;
+    }
+
+    .card:hover .card-back-pattern {
+      transform: scale(1.08);
+    }
+
+    /* 卡片正面 (翻開時顯示的圖示) */
+    .card-front {
+      background: var(--card-front-bg);
+      transform: rotateY(180deg);
+      border-color: #F7EDE2;
+    }
+
+    .card-emoji {
+      font-size: 2.75rem;
+      line-height: 1;
+      filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.1));
+    }
+
+    .card-name {
+      margin-top: 5px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--text-dark);
+      opacity: 0.85;
+      letter-spacing: 0.5px;
+    }
+
+    /* 慶祝對話框 (Modal) */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(43, 45, 66, 0.45);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 999;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.3s ease, visibility 0.3s ease;
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .modal-content {
+      background: #FFFFFF;
+      border-radius: var(--radius-lg);
+      padding: 32px 28px;
+      width: 100%;
+      max-width: 380px;
+      text-align: center;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+      transform: scale(0.85) translateY(20px);
+      transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+      border: 1px solid #F5EBE1;
+    }
+
+    .modal-overlay.active .modal-content {
+      transform: scale(1) translateY(0);
+    }
+
+    .modal-trophy {
+      font-size: 4rem;
+      margin-bottom: 12px;
+      display: inline-block;
+      animation: bounce 1.2s infinite alternate ease-in-out;
+    }
+
+    @keyframes bounce {
+      0% { transform: translateY(0); }
+      100% { transform: translateY(-10px) scale(1.05); }
+    }
+
+    .modal-title {
+      font-size: 1.65rem;
+      font-weight: 900;
+      color: var(--text-dark);
+      margin-bottom: 8px;
+    }
+
+    .modal-msg {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--primary-color);
+      margin-bottom: 20px;
+    }
+
+    .modal-stats {
+      background: #FFF9F2;
+      border-radius: var(--radius-md);
+      padding: 16px;
+      margin-bottom: 24px;
+      display: flex;
+      justify-content: space-around;
+      border: 1px solid #F7EDE2;
+    }
+
+    .stat-item {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .stat-label {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .stat-value {
+      font-size: 1.35rem;
+      font-weight: 800;
+      color: var(--text-dark);
+    }
+
+    .btn-modal-restart {
+      width: 100%;
+      background: var(--primary-color);
+      color: #FFFFFF;
+      border: none;
+      padding: 14px 20px;
+      font-size: 1.15rem;
+      font-weight: 800;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      box-shadow: 0 6px 16px rgba(231, 111, 81, 0.4);
+      transition: all 0.2s ease;
+      touch-action: manipulation;
+    }
+
+    .btn-modal-restart:active {
+      transform: scale(0.97);
+    }
+
+    /* 慶祝彩帶畫布 */
+    #confettiCanvas {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 1000;
+    }
+
+    /* 手機直向與小螢幕自適應優化 */
+    @media (max-height: 720px) {
+      body {
+        padding: 8px 10px;
+      }
+      .game-container {
+        gap: 10px;
+      }
+      h1 {
+        font-size: 1.45rem;
+        margin-bottom: 2px;
+      }
+      .game-board {
+        gap: 8px;
+        padding: 10px;
+      }
+      .card-emoji {
+        font-size: 2.25rem;
+      }
+      .card-name {
+        font-size: 0.72rem;
+      }
+    }
+
+    @media (max-width: 360px) {
+      .card-emoji {
+        font-size: 2.1rem;
+      }
+      .card-back-pattern {
+        width: 42px;
+        height: 42px;
+        font-size: 1.3rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="game-container">
+    <header>
+      <h1>🃏 記憶翻牌益智遊戲</h1>
+      <p class="subtitle">找出 6 對相同的圖示，挑戰你的大腦記憶力！</p>
+    </header>
+
+    <!-- 操作與計分區塊 -->
+    <div class="dashboard">
+      <div class="counter-badge">
+        <span>翻牌次數：</span>
+        <span class="number" id="flipCount">0</span>
+      </div>
+
+      <div class="action-group">
+        <button class="icon-btn" id="soundToggle" title="切換音效" aria-label="切換音效">🔊</button>
+        <button class="btn-restart" id="restartBtn">
+          <span>🔄 重新開始</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 4 行 3 列 (共 12 張牌) 棋盤 -->
+    <main class="game-board" id="gameBoard" role="region" aria-label="翻牌遊戲面板">
+      <!-- 卡片將由 JavaScript 動態生成 -->
+    </main>
+  </div>
+
+  <!-- 過關慶祝視窗 (Modal) -->
+  <div class="modal-overlay" id="celebrationModal">
+    <div class="modal-content">
+      <div class="modal-trophy">🏆</div>
+      <h2 class="modal-title">🎉 恭喜過關！</h2>
+      <p class="modal-msg">您的記憶力超棒！</p>
+      
+      <div class="modal-stats">
+        <div class="stat-item">
+          <span class="stat-label">翻牌次數</span>
+          <span class="stat-value" id="finalFlips">0</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">完成時間</span>
+          <span class="stat-value" id="finalTime">0 秒</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">記憶評價</span>
+          <span class="stat-value" id="finalRating">大師級</span>
+        </div>
+      </div>
+
+      <button class="btn-modal-restart" id="modalRestartBtn">再玩一次</button>
+    </div>
+  </div>
+
+  <!-- 彩帶特效畫布 -->
+  <canvas id="confettiCanvas"></canvas>
+
+  <script>
+    /* ============================================================
+       1. 遊戲資料定義 (6 對可愛動植物，共 12 張)
+       ============================================================ */
+    const CARD_ITEMS = [
+      { id: 'fox', emoji: '🦊', name: '小狐狸' },
+      { id: 'panda', emoji: '🐼', name: '大貓熊' },
+      { id: 'koala', emoji: '🐨', name: '無尾熊' },
+      { id: 'lion', emoji: '🦁', name: '小獅子' },
+      { id: 'rabbit', emoji: '🐰', name: '可愛兔' },
+      { id: 'dog', emoji: '🐶', name: '柴犬犬' }
+    ];
+
+    /* ============================================================
+       2. 遊戲狀態變數
+       ============================================================ */
+    let cards = [];
+    let flippedCards = [];
+    let matchedPairs = 0;
+    let flipCount = 0;
+    let isBoardLocked = false;
+    let startTime = null;
+    let timerInterval = null;
+    let soundEnabled = true;
+
+    /* DOM 節點 */
+    const gameBoard = document.getElementById('gameBoard');
+    const flipCountEl = document.getElementById('flipCount');
+    const restartBtn = document.getElementById('restartBtn');
+    const soundToggle = document.getElementById('soundToggle');
+    const celebrationModal = document.getElementById('celebrationModal');
+    const modalRestartBtn = document.getElementById('modalRestartBtn');
+    const finalFlipsEl = document.getElementById('finalFlips');
+    const finalTimeEl = document.getElementById('finalTime');
+    const finalRatingEl = document.getElementById('finalRating');
+    const confettiCanvas = document.getElementById('confettiCanvas');
+
+    /* ============================================================
+       3. 輕量音效產生器 (Web Audio API，無需外連音檔)
+       ============================================================ */
+    let audioCtx = null;
+    function getAudioContext() {
+      if (!audioCtx) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (AudioContextClass) {
+          audioCtx = new AudioContextClass();
+        }
+      }
+      if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+      return audioCtx;
+    }
+
+    function playSound(type) {
+      if (!soundEnabled) return;
+      try {
+        const ctx = getAudioContext();
+        if (!ctx) return;
+
+        const now = ctx.currentTime;
+        if (type === 'flip') {
+          // 清脆短木質敲擊聲
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(360, now);
+          osc.frequency.exponentialRampToValueAtTime(180, now + 0.08);
+          gain.gain.setValueAtTime(0.2, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.08);
+        } else if (type === 'match') {
+          // 愉悅的和弦
+          [523.25, 659.25, 783.99].forEach((freq, idx) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, now + idx * 0.07);
+            gain.gain.setValueAtTime(0.18, now + idx * 0.07);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.07 + 0.3);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now + idx * 0.07);
+            osc.stop(now + idx * 0.07 + 0.3);
+          });
+        } else if (type === 'mismatch') {
+          // 溫和的低音提示
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(260, now);
+          osc.frequency.exponentialRampToValueAtTime(190, now + 0.18);
+          gain.gain.setValueAtTime(0.15, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.18);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.18);
+        } else if (type === 'win') {
+          // 慶祝勝利琶音
+          const notes = [523.25, 659.25, 783.99, 1046.50];
+          notes.forEach((freq, idx) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq, now + idx * 0.12);
+            gain.gain.setValueAtTime(0.22, now + idx * 0.12);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.12 + 0.45);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now + idx * 0.12);
+            osc.stop(now + idx * 0.12 + 0.45);
+          });
+        }
+      } catch (e) {
+        console.warn('音效播放失敗:', e);
+      }
+    }
+
+    /* ============================================================
+       4. 洗牌演算法 (Fisher-Yates Shuffle)
+       ============================================================ */
+    function shuffle(array) {
+      const arr = [...array];
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    /* ============================================================
+       5. 遊戲初始化 / 重新開始
+       ============================================================ */
+    function initGame() {
+      // 停止勝利彩帶動畫
+      stopConfetti();
+      celebrationModal.classList.remove('active');
+
+      // 重設計數與狀態
+      flipCount = 0;
+      matchedPairs = 0;
+      flippedCards = [];
+      isBoardLocked = false;
+      startTime = Date.now();
+      flipCountEl.textContent = '0';
+
+      // 產生 6 對卡片 (共 12 張)
+      const deck = shuffle([...CARD_ITEMS, ...CARD_ITEMS]);
+
+      // 渲染盤面 (4 行 3 列)
+      gameBoard.innerHTML = '';
+      deck.forEach((item, index) => {
+        const card = document.createElement('div');
+        card.classList.add('card');
+        card.dataset.id = item.id;
+        card.dataset.index = index;
+        card.setAttribute('role', 'button');
+        card.setAttribute('aria-label', '未翻開卡片');
+
+        card.innerHTML = `
+          <div class="card-inner">
+            <div class="card-face card-back">
+              <div class="card-back-pattern">★</div>
+            </div>
+            <div class="card-face card-front">
+              <span class="card-emoji">${item.emoji}</span>
+              <span class="card-name">${item.name}</span>
+            </div>
+          </div>
+        `;
+
+        card.addEventListener('click', () => handleCardClick(card));
+        gameBoard.appendChild(card);
+      });
+    }
+
+    /* ============================================================
+       6. 翻牌邏輯與規則處理
+       ============================================================ */
+    function handleCardClick(card) {
+      // 檢查是否處於鎖定狀態、已被配對或已是當前翻開的牌
+      if (isBoardLocked) return;
+      if (card.classList.contains('matched')) return;
+      if (card.classList.contains('flipped')) return;
+
+      // 翻開點擊的卡片
+      card.classList.add('flipped');
+      playSound('flip');
+
+      // 更新翻牌次數 (每翻開一張牌計數加 1)
+      flipCount++;
+      flipCountEl.textContent = flipCount;
+
+      flippedCards.push(card);
+
+      // 當翻開兩張牌時進行判定
+      if (flippedCards.length === 2) {
+        checkPair();
+      }
+    }
+
+    function checkPair() {
+      isBoardLocked = true;
+      const [card1, card2] = flippedCards;
+      const isMatch = card1.dataset.id === card2.dataset.id;
+
+      if (isMatch) {
+        // 配對成功：標記為 matched，維持正面翻開
+        setTimeout(() => {
+          card1.classList.add('matched');
+          card2.classList.add('matched');
+          card1.setAttribute('aria-label', `配對成功：${card1.dataset.id}`);
+          card2.setAttribute('aria-label', `配對成功：${card2.dataset.id}`);
+          playSound('match');
+
+          matchedPairs++;
+          flippedCards = [];
+          isBoardLocked = false;
+
+          // 判斷是否全部 6 對皆配對成功
+          if (matchedPairs === CARD_ITEMS.length) {
+            handleVictory();
+          }
+        }, 280);
+      } else {
+        // 配對失敗：播放提示音，等待 1 秒 (1000ms) 後自動蓋回
+        playSound('mismatch');
+        setTimeout(() => {
+          card1.classList.remove('flipped');
+          card2.classList.remove('flipped');
+          flippedCards = [];
+          isBoardLocked = false;
+        }, 1000); // 規範：1 秒後自動翻轉蓋回
+      }
+    }
+
+    /* ============================================================
+       7. 全部配對成功：慶祝與評分
+       ============================================================ */
+    function handleVictory() {
+      const elapsedSeconds = Math.max(1, Math.round((Date.now() - startTime) / 1000));
+      playSound('win');
+
+      // 評定等級
+      let rating = '超群絕倫 🌟';
+      if (flipCount <= 16) {
+        rating = '記憶之神 👑';
+      } else if (flipCount <= 22) {
+        rating = '記憶大師 🧠';
+      } else if (flipCount <= 30) {
+        rating = '表現出色 👏';
+      } else {
+        rating = '堅持不懈 💪';
+      }
+
+      finalFlipsEl.textContent = `${flipCount} 次`;
+      finalTimeEl.textContent = `${elapsedSeconds} 秒`;
+      finalRatingEl.textContent = rating;
+
+      // 稍微延遲後優雅跳出過關視窗
+      setTimeout(() => {
+        celebrationModal.classList.add('active');
+        startConfetti();
+      }, 500);
+    }
+
+    /* ============================================================
+       8. 勝利彩帶動畫 (HTML5 Canvas Confetti)
+       ============================================================ */
+    let confettiAnimationId = null;
+    let particles = [];
+
+    function setupCanvas() {
+      confettiCanvas.width = window.innerWidth;
+      confettiCanvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', setupCanvas);
+    setupCanvas();
+
+    function startConfetti() {
+      stopConfetti();
+      setupCanvas();
+      const colors = ['#E76F51', '#F4A261', '#81B29A', '#E9C46A', '#3D405B', '#F28482'];
+      particles = Array.from({ length: 90 }).map(() => ({
+        x: Math.random() * confettiCanvas.width,
+        y: Math.random() * -confettiCanvas.height,
+        size: Math.random() * 8 + 6,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        vx: (Math.random() - 0.5) * 3,
+        vy: Math.random() * 3 + 2.5,
+        rotation: Math.random() * 360,
+        rotationSpeed: (Math.random() - 0.5) * 8
+      }));
+
+      const ctx = confettiCanvas.getContext('2d');
+      function render() {
+        ctx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+        particles.forEach(p => {
+          p.x += p.vx;
+          p.y += p.vy;
+          p.rotation += p.rotationSpeed;
+
+          if (p.y > confettiCanvas.height) {
+            p.y = -10;
+            p.x = Math.random() * confettiCanvas.width;
+          }
+
+          ctx.save();
+          ctx.translate(p.x, p.y);
+          ctx.rotate((p.rotation * Math.PI) / 180);
+          ctx.fillStyle = p.color;
+          ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.6);
+          ctx.restore();
+        });
+        confettiAnimationId = requestAnimationFrame(render);
+      }
+      render();
+    }
+
+    function stopConfetti() {
+      if (confettiAnimationId) {
+        cancelAnimationFrame(confettiAnimationId);
+        confettiAnimationId = null;
+      }
+      const ctx = confettiCanvas.getContext('2d');
+      ctx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+      particles = [];
+    }
+
+    /* ============================================================
+       9. 事件監聽
+       ============================================================ */
+    restartBtn.addEventListener('click', initGame);
+    modalRestartBtn.addEventListener('click', initGame);
+
+    soundToggle.addEventListener('click', () => {
+      soundEnabled = !soundEnabled;
+      soundToggle.textContent = soundEnabled ? '🔊' : '🔇';
+      soundToggle.style.opacity = soundEnabled ? '1' : '0.6';
+    });
+
+    // 點擊 Modal 外部亦可關閉
+    celebrationModal.addEventListener('click', (e) => {
+      if (e.target === celebrationModal) {
+        celebrationModal.classList.remove('active');
+        stopConfetti();
+      }
+    });
+
+    // 啟動遊戲
+    initGame();
+  </script>
+</body>
+</html>
